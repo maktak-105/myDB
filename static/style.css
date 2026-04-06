@@ -292,6 +292,16 @@ button:disabled {
   display: none;
 }
 
+/* Chart Canvas styling */
+.chart-wrapper {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 500px;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

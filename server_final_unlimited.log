@@ -1,0 +1,36 @@
+﻿INFO:     127.0.0.1:62432 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:62432 - "GET /style.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:49821 - "GET /app.js HTTP/1.1" 304 Not Modified
+[DEBUG] Tool: get_tent_stats()
+INFO:     127.0.0.1:62432 - "GET /tents/stats HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:49821 - "GET /tents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50867 - "PUT /tents/9 HTTP/1.1" 422 Unprocessable Content
+INFO:     127.0.0.1:64238 - "GET / HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:64238 - "PUT /tents/9 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64238 - "GET /style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64973 - "GET /app.js HTTP/1.1" 200 OK
+[DEBUG] Tool: get_tent_stats()
+INFO:     127.0.0.1:64973 - "GET /tents/stats HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:64238 - "GET /tents HTTP/1.1" 200 OK
+[DEBUG] Chat request from session 8pkx8db: 価格が3万円～4万円のテントを出して
+[DEBUG] Creating new session: 8pkx8db
+[DEBUG] Tool: list_tents(skip=0, min_price=30000.0, max_price=40000.0) - Found 9
+[DEBUG] AI response: 価格が3万円～4万円のテントは以下の通りです。
+
+* **Ogawa TRES** (ogawa) - 36,250円
+* **SABBATICAL MORNING GLORY** (SABBATICAL) - 30,500円
+* **Hilander NAGASAWA300** (Hilander) - 36,500円
+* **Ogawa Tasso T/C** (ogawa) - 35,800円
+* **VASTLAND 2ルーム トンネルS** (VASTLAND) - 35,620円
+* **Ogawa ツインクレスタT/C** (ogawa) - 36,000円
+* **tent-Mark DESIGNS サーカス720SS** (tent-Mark DESIGNS) - 34,800円
+* **S'more Rooflet** (S'more) - 31,418円
+* **Ogawa ツインクレスタ** (ogawa) - 38,500円
+INFO:     127.0.0.1:61315 - "POST /api/chat HTTP/1.1" 200 OK
+[DEBUG] Tool: get_tent_stats()
+INFO:     127.0.0.1:58320 - "GET /tents/stats HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61315 - "GET /tents HTTP/1.1" 200 OK
+[DEBUG] Chat request from session 8pkx8db: 価格の度数分布のグラフを作って
+[DEBUG] Tool: get_tent_stats()
+[ERROR] Chat error: 'generator' object has no attribute 'query'
+INFO:     127.0.0.1:53601 - "POST /api/chat HTTP/1.1" 500 Internal Server Error

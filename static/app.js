@@ -204,12 +204,36 @@ function appendMessage(sender, text) {
     msgDiv.className = `message ${sender}-message`;
     
     if (sender === 'ai') {
-        msgDiv.innerHTML = marked.parse(text);
+        // Look for chart data block: ```chart ... ```
+        const chartRegex = /```chart\s+([\s\S]*?)```/g;
+        let processedText = text;
+        const chartsToRender = [];
+
+        processedText = text.replace(chartRegex, (match, jsonStr) => {
+            const chartId = `chart-${Math.random().toString(36).substring(7)}`;
+            chartsToRender.push({ id: chartId, json: jsonStr.trim() });
+            return `<div class="chart-wrapper"><canvas id="${chartId}"></canvas></div>`;
+        });
+
+        msgDiv.innerHTML = marked.parse(processedText);
+        container.appendChild(msgDiv);
+
+        // Render charts after adding to DOM
+        chartsToRender.forEach(chartObj => {
+            try {
+                const config = JSON.parse(chartObj.json);
+                const ctx = document.getElementById(chartObj.id).getContext('2d');
+                new Chart(ctx, config);
+            } catch (e) {
+                console.error('Failed to render chart:', e);
+                document.getElementById(chartObj.id).parentElement.innerText = 'グラフの描画に失敗しました。';
+            }
+        });
     } else {
         msgDiv.innerText = text;
+        container.appendChild(msgDiv);
     }
     
-    container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
 
     // Save to history

@@ -64,7 +64,7 @@ def get_tent_by_id(tent_id: int):
     指定したIDのテントの詳細情報を取得します。
     """
     print(f"[DEBUG] Tool: get_tent_by_id(id={tent_id})")
-    db = get_db_session()
+    db = next(get_db_session())
     try:
         t = db.query(models.Tent).filter(models.Tent.id == tent_id).first()
         if not t:
@@ -81,7 +81,7 @@ def get_tent_stats():
     テントの統計データ（合計数、平均価格など）を取得します。
     """
     print("[DEBUG] Tool: get_tent_stats()")
-    db = get_db_session()
+    db = next(get_db_session())
     try:
         count = db.query(func.count(models.Tent.id)).scalar()
         avg_price = db.query(func.avg(models.Tent.price)).scalar()
@@ -97,7 +97,7 @@ def update_tent_price(tent_id: int, new_price: int):
     指定したIDのテントの価格を更新します。
     """
     print(f"[DEBUG] Tool: update_tent_price(id={tent_id}, price={new_price})")
-    db = get_db_session()
+    db = next(get_db_session())
     try:
         db_tent = db.query(models.Tent).filter(models.Tent.id == tent_id).first()
         if not db_tent:
@@ -116,7 +116,7 @@ def delete_tent_by_id(tent_id: int):
     指定したIDのテントを削除します。
     """
     print(f"[DEBUG] Tool: delete_tent_by_id(id={tent_id})")
-    db = get_db_session()
+    db = next(get_db_session())
     try:
         db_tent = db.query(models.Tent).filter(models.Tent.id == tent_id).first()
         if not db_tent:
@@ -133,7 +133,7 @@ def add_tent(name: str, brand: str = None, price: int = None, capacity: int = No
     新しいテントをデータベースに追加します。
     """
     print(f"[DEBUG] Tool: add_tent(name={name}, brand={brand})")
-    db = get_db_session()
+    db = next(get_db_session())
     try:
         new_tent = models.Tent(name=name, brand=brand, price=price, capacity=capacity)
         db.add(new_tent)
@@ -145,7 +145,7 @@ def add_tent(name: str, brand: str = None, price: int = None, capacity: int = No
 
 # Initialize Gemini Model with Tools
 model = genai.GenerativeModel(
-    model_name='models/gemini-3-flash-preview',
+    model_name='models/gemini-1.5-flash-latest',
     tools=[list_tents, search_tents, get_tent_by_id, get_tent_stats, update_tent_price, delete_tent_by_id, add_tent]
 )
 
