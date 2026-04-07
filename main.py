@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 
 import models
 import schemas
+import httpx
 import database
-from notion_client import Client
+from typing import Dict, Any, List
 
 # Load environment variables
 load_dotenv()
@@ -150,88 +151,98 @@ def add_tent(name: str, brand: str = None, price: float = None, capacity: float 
     finally:
         db.close()
 
-# --- Notion API Tools for Gemini ---
+# --- Notion API Tools via Direct HTTP (httpx) ---
 
-def list_notion_tents():
+NOTION_API_VERSION = "2022-06-28"
+# 「煩悩テント」親ページ ID
+BONNOU_TENT_PARENT_ID = "10c9fa68-e7ac-809a-8512-eca278b82750"
+
+def list_notion_tents() -> Any:
     """
-    Notionのデータベースからテントのページ一覧をフェッチします。
+    「煩悩テント」親ページの下にある子ページ（各テント）の一覧を取得します。
     """
     token = (os.getenv("NOTION_TOKEN") or "").strip()
-    db_id = (os.getenv("NOTION_DATABASE_ID") or "").strip()
-    print(f"[DEBUG] Notion Sync: START. ID: {db_id}")
+    print(f"[DEBUG] Notion Sync: Fetching children of {BONNOU_TENT_PARENT_ID}")
     
-    if not token or not db_id: 
-        return "ERROR: Notion configuration missing in .env."
+    if not token: return "ERROR: Notion token missing."
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": NOTION_API_VERSION
+    }
     
     try:
-        # Use explicit client initialization to avoid any shadowing
-        notion_client_app = Client(auth=token)
-        print(f"[DEBUG] Notion Sync: Client type: {type(notion_client_app)}")
-        
-        # Guard against AttributeError: DatabasesEndpoint object has no attribute 'query'
-        # Check if 'databases' and 'query' exist at runtime
-        if not hasattr(notion_client_app, "databases") or not hasattr(notion_client_app.databases, "query"):
-            err = f"FATAL: Database query method missing. DB Endpoint: {type(getattr(notion_client_app, 'databases', None))}, Attributes: {dir(getattr(notion_client_app, 'databases', 'None'))}"
-            print(f"[ERROR] {err}")
-            return f"ERROR: internal library conflict - {err}"
-
-        print(f"[DEBUG] Notion Sync: QUERYING Notion API.")
-        response = notion_client_app.databases.query(database_id=db_id)
-        results = response.get("results", [])
-        print(f"[DEBUG] Notion Sync: SUCCESS. Found {len(results)} pages.")
-        
-        output = []
-        for p in results:
-            props = p.get("properties", {})
-            title_p = props.get("Name") or props.get("名前") or {}
-            title = "".join(t.get("plain_text", "") for t in title_p.get("title", []))
-            output.append({"page_id": p["id"], "name": title})
-        return output if output else "No pages found in Notion database."
+        with httpx.Client() as client:
+            url = f"https://api.notion.com/v1/blocks/{BONNOU_TENT_PARENT_ID}/children"
+            response = client.get(url, headers=headers)
+            
+            if response.status_code != 200:
+                return f"ERROR: API {response.status_code} - {response.text}"
+                
+            data = response.json()
+            results = data.get("results", [])
+            
+            # Filter only child_page types
+            output = []
+            for b in results:
+                if b["type"] == "child_page":
+                    output.append({
+                        "page_id": b["id"],
+                        "name": b["child_page"].get("title", "Untitled Page")
+                    })
+            
+            print(f"[DEBUG] Notion Sync: Found {len(output)} tent pages.")
+            return output if output else "煩悩テントの下に子ページが見つかりませんでした。"
     except Exception as e:
-        err = f"Notion API Exception: {str(e)}"
-        print(f"[ERROR] Notion Sync Failure: {err}")
-        traceback.print_exc()
-        return err
+        print(f"[ERROR] Notion Sync Exception: {str(e)}")
+        return f"Error connecting to Notion: {str(e)}"
 
-def get_notion_tent_detail(page_id: str):
+def get_notion_tent_detail(page_id: str) -> Any:
     """
-    指定したIDのNotionページのプロパティ詳細（定員、価格など）を取得します。
+    指定されたテントページの「本文（テキストブロック）」をすべて読み取り、平文（非構造化データ）として返します。
     """
     token = (os.getenv("NOTION_TOKEN") or "").strip()
     if not token: return "ERROR: Notion token missing."
     
-    print(f"[DEBUG] Notion Detail: START for page {page_id}")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": NOTION_API_VERSION
+    }
+    
+    print(f"[DEBUG] Notion Content (Direct API): Reading blocks for {page_id}")
     try:
-        notion_client_app = Client(auth=token)
-        # Verify page retrieval method
-        if not hasattr(notion_client_app, "pages") or not hasattr(notion_client_app.pages, "retrieve"):
-             return f"ERROR: library sync error - Pages endpoint missing."
-
-        p = notion_client_app.pages.retrieve(page_id=page_id)
-        props = p.get("properties", {})
-        
-        def get_val(name):
-            val = props.get(name, {})
-            if not val: return None
-            vtype = val.get("type")
-            if vtype == "title": return "".join(t.get("plain_text", "") for t in val.get("title", []))
-            if vtype == "rich_text": return "".join(t.get("plain_text", "") for t in val.get("rich_text", []))
-            if vtype == "number": return val.get("number")
-            if vtype == "select": return (val.get("select") or {}).get("name")
-            return None
-
-        data = {
-            "name": get_val("Name") or get_val("名前"),
-            "brand": get_val("Brand") or get_val("ブランド"),
-            "price": get_val("Price") or get_val("価格"),
-            "capacity": get_val("Capacity") or get_val("定員")
-        }
-        print(f"[DEBUG] Notion Detail: SUCCESS. Data: {data}")
-        return data
+        with httpx.Client() as client:
+            # Get block children (the page content)
+            url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+            response = client.get(url, headers=headers)
+            
+            if response.status_code != 200:
+                return f"ERROR: API {response.status_code} - {response.text}"
+                
+            data = response.json()
+            results = data.get("results", [])
+            
+            # Extract plain text from paragraphs, list items, etc.
+            text_parts = []
+            for b in results:
+                btype = b["type"]
+                content_obj = b.get(btype, {})
+                rich_text = content_obj.get("rich_text", [])
+                text = "".join(t.get("plain_text", "") for t in rich_text)
+                if text:
+                    text_parts.append(text)
+            
+            full_text = "\n".join(text_parts)
+            print(f"[DEBUG] Notion Content: Extracted {len(full_text)} characters.")
+            
+            # Return result as a dictionary containing the unstructured text for AI to parse
+            return {
+                "page_id": page_id,
+                "unstructured_content": full_text
+            }
     except Exception as e:
-        err = f"Detail retrieve failure: {str(e)}"
-        print(f"[ERROR] Notion Detail Failure: {err}")
-        return err
+        print(f"[ERROR] Notion Content Failure: {str(e)}")
+        return f"Failed to retrieve Notion page text: {str(e)}"
 
 def add_notion_tent_to_db(page_id: str):
     """
@@ -241,15 +252,16 @@ def add_notion_tent_to_db(page_id: str):
     detail = get_notion_tent_detail(page_id)
     if isinstance(detail, str): return detail # Return error string
     
-    if not detail.get("name"): return "ERROR: Page has no name, cannot import."
+    if not detail.get("name") or detail.get("name") == "Unnamed Tent": 
+        return "ERROR: Page has no valid name, cannot import."
     
-    # Ensure numerical values are correctly typed
+    # Ensure numerical values are correctly typed for models.Tent
     try:
-        price = float(detail.get("price")) if detail.get("price") is not None else None
-        capacity = float(detail.get("capacity")) if detail.get("capacity") is not None else None
+        price = float(detail.get("price")) if detail.get("price") is not None else 0.0
+        capacity = float(detail.get("capacity")) if detail.get("capacity") is not None else 0.0
     except (ValueError, TypeError):
-        price = None
-        capacity = None
+        price = 0.0
+        capacity = 0.0
 
     return add_tent(
         name=detail["name"],
